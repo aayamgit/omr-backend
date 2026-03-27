@@ -43,13 +43,14 @@ export async function POST(req: NextRequest) {
 
     const { amount, reason, meta } = parsed.data;
 
-    const user = await User.findById(authUser.userId);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'User not found' },
-        { status: 404 }
-      );
-    }
+   const user = await User.findById(authUser.userId);
+
+if (!user) {
+  return NextResponse.json(
+    { success: false, message: 'User not found' },
+    { status: 404 }
+  );
+}
 
     if (user.omrWallet < amount) {
       return NextResponse.json(
