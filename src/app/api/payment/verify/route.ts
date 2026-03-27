@@ -35,12 +35,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await User.findById(authUser.userId);
+    const user = await User.findById(userId);
 
-    // 💰 Add credits (1₹ = 1 scan example)
-    const credits = amount * 1.5; // or custom
-user.omrWallet += credits;
-    await user.save();
+if (!user) {
+  return NextResponse.json(
+    { success: false, message: 'User not found' },
+    { status: 404 }
+  );
+}
+
+const credits = amount * 1.5;
+user.omrWallet = (user.omrWallet || 0) + credits;
+await user.save();
 
     await WalletTransaction.create({
       userId: user._id,
