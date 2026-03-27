@@ -1,36 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { z } from 'zod';
+import jwt from 'jsonwebtoken';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
-import { signToken } from '@/lib/jwt';
-
-const loginSchema = z.object({
-  email: z.email('Valid email is required'),
-  password: z.string().min(1, 'Password is required'),
-});
 
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
     const body = await req.json();
-    const parsed = loginSchema.safeParse(body);
+    const email = String(body?.email || '').trim().toLowerCase();
+    const password = String(body?.password || '');
 
-    if (!parsed.success) {
+    if (!email || !password) {
       return NextResponse.json(
-        {
-          success: false,
-          message: 'Validation failed',
-          errors: parsed.error.flatten(),
-        },
+        { success: false, message: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    const { email, password } = parsed.data;
+    const user = await User.findOne({ email }).select('+password');
 
-    const user = await User.findOne({ email });
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'Invalid email or password' },
@@ -38,14 +28,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!user.isActive) {
+    if (!user.password) {
       return NextResponse.json(
-        { success: false, message: 'Account is disabled' },
-        { status: 403 }
+        { success: false, message: 'Password not set for this user' },
+        { status: 500 }
       );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
+
     if (!isPasswordValid) {
       return NextResponse.json(
         { success: false, message: 'Invalid email or password' },
@@ -53,40 +44,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = signToken({
-      userId: String(user._id),
-      email: user.email,
-      role: user.role,
-    });
+    if (!process.env.JWT_SECRET) {
+      return NextResponse.json(
+        { success: false, message: 'JWT secret is not configured' },
+        { status: 500 }
+      );
+    }
+
+    const token = jwt.sign(
+      {
+        userId: String(user._id),
+        email: user.email,
+        role: user.role || 'user',
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     const response = NextResponse.json({
       success: true,
-      message: 'Login successful',
       user: {
-        id: user._id,
+        id: String(user._id),
         name: user.name,
         email: user.email,
-        role: user.role,
-        plan: user.plan,
-        omrWallet: user.omrWallet,
+        role: user.role || 'user',
       },
     });
 
-    response.cookies.set({
-      name: 'omr_token',
-      value: token,
+    response.cookies.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 7 * 24 * 60 * 60,
     });
 
     return response;
-  } catch (error) {
-    console.error('LOGIN_ERROR', error);
+  } catch (error: any) {
+    console.error('LOGIN_ERROR:', error);
+
     return NextResponse.json(
-      { success: false, message: 'Server error during login' },
+      {
+        success: false,
+        message: error?.message || 'Server error during login',
+      },
       { status: 500 }
     );
   }

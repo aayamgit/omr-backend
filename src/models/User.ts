@@ -4,12 +4,8 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'admin';
-  plan: 'free' | 'basic' | 'advanced' | 'pro' | 'enterprise';
-  omrWallet: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  role?: string;
+  omrWallet?: number;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -23,30 +19,21 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
       trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
       required: true,
+      select: false,
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
       default: 'user',
-    },
-    plan: {
-      type: String,
-      enum: ['free', 'basic', 'advanced', 'pro', 'enterprise'],
-      default: 'free',
     },
     omrWallet: {
       type: Number,
       default: 0,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
     },
   },
   {
