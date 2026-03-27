@@ -1,18 +1,18 @@
 {
-  "scripts": 
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start"
-
   "name": "omr-backend",
   "version": "0.1.0",
   "private": true,
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start"
   },
+
+  "engines": {
+    "node": "22.x"
+  },
+
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cookie": "^1.1.1",
@@ -26,6 +26,7 @@
     "react-dom": "19.2.4",
     "zod": "^4.3.6"
   },
+
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
