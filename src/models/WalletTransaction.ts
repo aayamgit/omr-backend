@@ -4,8 +4,12 @@ export interface IWalletTransaction extends Document {
   userId: mongoose.Types.ObjectId;
   type: 'credit' | 'debit';
   amount: number;
-  reason: string;
+  reason?: string;
   balanceAfter: number;
+  orderId?: string;
+  paymentId?: string;
+  signature?: string;
+  creditsAdded?: number;
   meta?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -17,7 +21,6 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     type: {
       type: String,
@@ -36,12 +39,31 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>(
       type: Number,
       required: true,
     },
+    orderId: {
+      type: String,
+      default: '',
+    },
+    paymentId: {
+      type: String,
+      default: '',
+      index: true,
+    },
+    signature: {
+      type: String,
+      default: '',
+    },
+    creditsAdded: {
+      type: Number,
+      default: 0,
+    },
     meta: {
       type: Schema.Types.Mixed,
       default: {},
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 const WalletTransaction: Model<IWalletTransaction> =

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { createHmac } from 'crypto';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import WalletTransaction from '@/models/WalletTransaction';
@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     const authUser = await getAuthUser();
-    if (!authUser) {
+
+    if (!authUser?.userId) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -19,64 +20,79 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      amount,
-    } = body;
+    const razorpayOrderId = String(body?.razorpay_order_id || '').trim();
+    const razorpayPaymentId = String(body?.razorpay_payment_id || '').trim();
+    const razorpaySignature = String(body?.razorpay_signature || '').trim();
+    const numericAmount = Number(body?.amount);
 
     if (
-      !razorpay_order_id ||
-      !razorpay_payment_id ||
-      !razorpay_signature ||
-      !amount
+      !razorpayOrderId ||
+      !razorpayPaymentId ||
+      !razorpaySignature ||
+      !Number.isFinite(numericAmount)
     ) {
       return NextResponse.json(
-        { success: false, message: 'Missing payment details' },
+        { success: false, message: 'Missing or invalid payment details' },
         { status: 400 }
       );
     }
 
-    if (!process.env.RAZORPAY_KEY_SECRET) {
-      return NextResponse.json(
-        { success: false, message: 'Razorpay secret not configured' },
-        { status: 500 }
-      );
-    }
-
-    const generated_signature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
-
-    if (generated_signature !== razorpay_signature) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid payment signature' },
-        { status: 400 }
-      );
-    }
-
-    const user = await User.findById(authUser.userId);
-
-if (!user) {
-  return NextResponse.json(
-    { success: false, message: 'User not found' },
-    { status: 404 }
-  );
-}
-
-    const numericAmount = Number(amount);
-    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
+    if (numericAmount <= 0) {
       return NextResponse.json(
         { success: false, message: 'Invalid amount' },
         { status: 400 }
       );
     }
 
-    const credits = numericAmount * 1.5;
+    const razorpaySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    user.omrWallet = Number(user.omrWallet || 0) + credits;
+    if (!razorpaySecret) {
+      return NextResponse.json(
+        { success: false, message: 'Razorpay secret not configured' },
+        { status: 500 }
+      );
+    }
+
+    const expectedSignature = createHmac('sha256', razorpaySecret)
+      .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpaySignature) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid payment signature' },
+        { status: 400 }
+      );
+    }
+
+    const existingTransaction = await WalletTransaction.findOne({
+      paymentId: razorpayPaymentId,
+      type: 'credit',
+    });
+
+    if (existingTransaction) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Payment already processed',
+        },
+        { status: 409 }
+      );
+    }
+
+    const user = await User.findById(authUser.userId);
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const creditsToAdd = numericAmount * 1.5;
+    const currentWalletBalance = Number(user.omrWallet || 0);
+    const updatedWalletBalance = currentWalletBalance + creditsToAdd;
+
+    user.omrWallet = updatedWalletBalance;
     await user.save();
 
     await WalletTransaction.create({
@@ -84,16 +100,25 @@ if (!user) {
       type: 'credit',
       amount: numericAmount,
       reason: 'Payment recharge',
-      balanceAfter: user.omrWallet,
+      balanceAfter: updatedWalletBalance,
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+      creditsAdded: creditsToAdd,
     });
 
-    return NextResponse.json({
-      success: true,
-      balance: user.omrWallet,
-      creditsAdded: credits,
-    });
-  } catch (err) {
-    console.error('Payment verify error:', err);
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Payment verified and wallet recharged successfully',
+        balance: updatedWalletBalance,
+        creditsAdded: creditsToAdd,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Payment verify error:', error);
+
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }
