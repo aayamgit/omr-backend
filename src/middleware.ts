@@ -1,11 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-
-type TokenPayload = {
-  userId: string;
-  email: string;
-  role: string;
-};
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
@@ -46,7 +39,6 @@ export function middleware(req: NextRequest) {
   }
 
   const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
-
   if (isPublic) {
     return applyCors(req, NextResponse.next());
   }
@@ -67,33 +59,7 @@ export function middleware(req: NextRequest) {
     return applyCors(req, NextResponse.redirect(new URL('/login', req.url)));
   }
 
-  try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as TokenPayload;
-
-    if (pathname.startsWith('/admin') && decoded.role !== 'admin') {
-      return applyCors(
-        req,
-        NextResponse.redirect(new URL('/dashboard', req.url))
-      );
-    }
-
-    return applyCors(req, NextResponse.next());
-  } catch {
-    if (pathname.startsWith('/api/')) {
-      return applyCors(
-        req,
-        NextResponse.json(
-          { success: false, message: 'Invalid token' },
-          { status: 401 }
-        )
-      );
-    }
-
-    return applyCors(req, NextResponse.redirect(new URL('/login', req.url)));
-  }
+  return applyCors(req, NextResponse.next());
 }
 
 export const config = {

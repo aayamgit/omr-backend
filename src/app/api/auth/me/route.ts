@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import User from '@/models/User';
 import { getAuthUser } from '@/lib/auth';
+import User from '@/models/User';
 
 export async function GET() {
   try {
     await connectDB();
 
     const authUser = await getAuthUser();
-    if (!authUser) {
+
+    if (!authUser?.userId) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -16,6 +17,7 @@ export async function GET() {
     }
 
     const user = await User.findById(authUser.userId).select('-password');
+
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -25,12 +27,17 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      user,
+      user: {
+        id: String(user._id),
+        name: user.name,
+        email: user.email,
+        role: user.role || 'user',
+      },
     });
-  } catch (error) {
-    console.error('ME_ERROR', error);
+  } catch (error: any) {
+    console.error('ME_ERROR:', error);
     return NextResponse.json(
-      { success: false, message: 'Server error fetching profile' },
+      { success: false, message: error?.message || 'Failed to load user' },
       { status: 500 }
     );
   }
