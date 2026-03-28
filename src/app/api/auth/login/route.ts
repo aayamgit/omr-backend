@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
-import { signToken } from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,14 +44,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = signToken({
-      userId: String(user._id),
-      email: user.email,
-      role: user.role || 'user',
-    });
+    if (!process.env.JWT_SECRET) {
+      return NextResponse.json(
+        { success: false, message: 'JWT secret is not configured' },
+        { status: 500 }
+      );
+    }
+
+    const token = jwt.sign(
+      {
+        userId: String(user._id),
+        email: user.email,
+        role: user.role || 'user',
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     const response = NextResponse.json({
       success: true,
+      token, // 🔥 YE MISSING THA
       user: {
         id: String(user._id),
         name: user.name,
@@ -60,10 +72,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    response.cookies.set('omr_token', token, {
+    response.cookies.set('token', token, {
       httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });
@@ -71,8 +83,12 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error: any) {
     console.error('LOGIN_ERROR:', error);
+
     return NextResponse.json(
-      { success: false, message: error?.message || 'Server error during login' },
+      {
+        success: false,
+        message: error?.message || 'Server error during login',
+      },
       { status: 500 }
     );
   }
