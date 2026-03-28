@@ -6,13 +6,13 @@ export async function POST() {
     message: 'Logged out successfully',
   });
 
-  response.cookies.set({
-    name: 'omr_token',
-    value: '',
-    httpOnly: true,
-    expires: new Date(0),
-    path: '/',
-  });
+  response.cookies.set('omr_token', '', {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  path: '/',
+  maxAge: 0,
+});
 
   return response;
 }

@@ -71,10 +71,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    response.cookies.set('token', token, {
+    response.cookies.set('omr_token', token, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });

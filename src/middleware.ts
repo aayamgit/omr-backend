@@ -9,7 +9,7 @@ type TokenPayload = {
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
-  'https://omr.aayamcareerinstitute.co.in/',
+  'https://omr.aayamcareerinstitute.co.in',
 ];
 
 function applyCors(req: NextRequest, response: NextResponse) {
@@ -35,15 +35,19 @@ function applyCors(req: NextRequest, response: NextResponse) {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const publicRoutes = ['/login', '/api/auth/login', '/api/auth/register'];
+  const publicRoutes = [
+    '/login',
+    '/api/auth/login',
+    '/api/auth/register',
+  ];
 
-  // ✅ CORS preflight handle karo
   if (req.method === 'OPTIONS') {
     return applyCors(req, new NextResponse(null, { status: 204 }));
   }
 
-  // ✅ Public routes ko direct allow karo
-  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+  const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
+
+  if (isPublic) {
     return applyCors(req, NextResponse.next());
   }
 
