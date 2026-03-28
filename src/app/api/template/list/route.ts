@@ -7,7 +7,7 @@ export async function GET() {
   try {
     await connectDB();
 
-    const authUser = await getAuthUser();
+    const authUser = await getAuthUser(req);
     if (!authUser) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },

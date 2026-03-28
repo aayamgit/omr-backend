@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const authUser = await getAuthUser();
+    const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'admin') {
       return NextResponse.json({ success: false }, { status: 403 });
     }
