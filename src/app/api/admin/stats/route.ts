@@ -1,15 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 import ScanLog from '@/models/ScanLog';
 import WalletTransaction from '@/models/WalletTransaction';
 import { getAuthUser } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
     const authUser = await getAuthUser(req);
+
     if (!authUser || authUser.role !== 'admin') {
       return NextResponse.json(
         { success: false, message: 'Forbidden' },

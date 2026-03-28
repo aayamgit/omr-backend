@@ -5,7 +5,7 @@ const ALLOWED_ORIGINS = [
   'https://omr.aayamcareerinstitute.co.in',
 ];
 
-function applyCors(req, response) {
+function applyCors(req: NextRequest, response: NextResponse) {
   const origin = req.headers.get('origin');
 
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
@@ -25,7 +25,7 @@ function applyCors(req, response) {
   return response;
 }
 
-function getTokenFromRequest(req) {
+function getTokenFromRequest(req: NextRequest) {
   const cookieToken = req.cookies.get('omr_token')?.value;
   if (cookieToken) return cookieToken;
 
@@ -37,7 +37,7 @@ function getTokenFromRequest(req) {
   return null;
 }
 
-export function middleware(req) {
+export function middleware(req: NextRequest, response: NextResponse) {
   const { pathname } = req.nextUrl;
 
   const publicRoutes = [

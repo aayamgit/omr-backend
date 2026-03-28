@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import Template from '@/models/Template';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
